@@ -15,7 +15,7 @@ WORKDIR /usr/src/app
 
 # Copy node.js source, changing owner as well
 COPY --chown=node:node . /usr/src/app
-RUN npm ci
+RUN npm i
 
 ENV PORT $CC_SERVER_PORT
 EXPOSE $CC_SERVER_PORT
