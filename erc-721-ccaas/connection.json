@@ -1,5 +1,5 @@
 {
-  "address": "erc-721:7052",
+  "address": "applaudo-giftcard:7052",
   "dial_timeout": "10s",
   "tls_required": false
 }
