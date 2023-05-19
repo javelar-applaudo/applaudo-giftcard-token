@@ -1,0 +1,54 @@
+name: Deploy Chaincode to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types:
+      - completed
+
+env:
+  PACKAGE_ID: applaudo-giftcard:d17b3d9f1b1791522ac38ca82350bcb6cde7efb62ed658cba47d44bb7ee15e32
+
+jobs:
+  cicd:
+    runs-on: ubuntu-latest
+    steps:
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Auth GCP Plugins
+        run: |-
+          gcloud components install gke-gcloud-auth-plugin
+
+      - name: Get Cluster Credentials
+        run: |-
+          gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} --zone ${{ secrets.GKE_CLUSTER_ZONE }} --project ${{ secrets.GCP_PROJECT_ID }}
+          
+      - name: Install Krew
+        run: |-
+            set -x; cd "$(mktemp -d)" &&
+            OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+            ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" &&
+            KREW="krew-${OS}_${ARCH}" &&
+            curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
+            tar zxvf "${KREW}.tar.gz" &&
+            ./"${KREW}" install krew
+            export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+
+            kubectl krew
+
+      - name: Install Krew Plugins hlf
+        run: |-
+            export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+            kubectl krew install hlf
+
+      - name: Deploy chaincode
+        run: |-
+          export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+          kubectl get pods -n fabric
+          kubectl hlf externalchaincode sync --image=eduser04/applaudogiftcard --name=applaudo-giftcard --namespace fabric --package-id=$PACKAGE_ID --tls-required=false --replicas=1
